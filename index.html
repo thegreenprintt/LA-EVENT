@@ -766,6 +766,7 @@ fieldset legend{font-family:"JetBrains Mono",monospace;font-size:.68rem;letter-s
 
       <div class="reveal d1">
         <form class="form" id="regForm" novalidate>
+          <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
           <div class="f-row">
             <div class="field">
               <label for="firstName">First name <span class="req">*</span></label>
@@ -792,58 +793,6 @@ fieldset legend{font-family:"JetBrains Mono",monospace;font-size:.68rem;letter-s
             </div>
           </div>
 
-          <div class="f-row">
-            <div class="field">
-              <label for="city">City</label>
-              <input type="text" id="city" name="city" autocomplete="address-level2" placeholder="City">
-              <span class="err">Required</span>
-            </div>
-            <div class="field">
-              <label for="state">State</label>
-              <input type="text" id="state" name="state" autocomplete="address-level1" placeholder="State">
-              <span class="err">Required</span>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="instagram">Instagram handle</label>
-            <input type="text" id="instagram" name="instagram" placeholder="@yourhandle">
-          </div>
-
-          <div class="f-row">
-            <div class="field">
-              <label for="inGreenprint">Currently part of The Greenprint?</label>
-              <select id="inGreenprint" name="inGreenprint">
-                <option value="">Select</option>
-                <option>Yes</option><option>No</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="trading">Currently trading?</label>
-              <select id="trading" name="trading">
-                <option value="">Select</option>
-                <option>Yes</option><option>No</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="f-row">
-            <div class="field">
-              <label for="hasAccount">Have a trading account?</label>
-              <select id="hasAccount" name="hasAccount">
-                <option value="">Select</option>
-                <option>Yes</option><option>No</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="interested">Interested in getting started?</label>
-              <select id="interested" name="interested">
-                <option value="">Select</option>
-                <option>Yes</option><option>Maybe</option><option>No</option>
-              </select>
-            </div>
-          </div>
-
           <fieldset>
             <legend>Which day(s) are you coming? Check one or both. <span class="req">*</span></legend>
             <div class="checks" id="eventChecks">
@@ -851,14 +800,6 @@ fieldset legend{font-family:"JetBrains Mono",monospace;font-size:.68rem;letter-s
               <label class="check"><input type="checkbox" name="events" value="Day 2 — Free Trading Workshop (Thu, Sep 17)"><span>Day 2 &middot; Free Workshop &middot; Thu Sep 17</span></label>
             </div>
             <span class="err" id="eventsErr" style="display:none;color:#d97a5f;font-size:.74rem;margin-top:8px;font-family:'JetBrains Mono',monospace">Pick at least one day</span>
-          </fieldset>
-
-          <fieldset>
-            <legend>Want help setting up or funding your trading account at the event?</legend>
-            <div class="radio-row">
-              <label class="radio-pill"><input type="radio" name="fundingHelp" value="Yes"><span>Yes</span></label>
-              <label class="radio-pill"><input type="radio" name="fundingHelp" value="No"><span>No</span></label>
-            </div>
           </fieldset>
 
           <div class="form-submit">
@@ -936,13 +877,16 @@ fieldset legend{font-family:"JetBrains Mono",monospace;font-size:.68rem;letter-s
 
 <script>
 /* ============================================================
-   CONFIG — registration is LIVE and posts to this Formspree form.
-   To change it, swap the endpoint below for another
-   "https://formspree.io/f/xxxxxxx" form. Note: Formspree's first
-   submission must be confirmed once (check the email Formspree
-   sends) before entries start arriving.
+   CONFIG — Web3Forms backend (free, 250 submissions / month).
+   1. Get a free access key in ~30 seconds at https://web3forms.com
+      (enter your email, copy the key it shows you).
+   2. Paste it below in place of YOUR_ACCESS_KEY.
+   While it stays YOUR_ACCESS_KEY the form runs in demo mode
+   (it validates and shows the confirmation, but nothing is sent).
+   Registrations arrive at the email tied to your access key.
    ============================================================ */
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/moeazkav";
+const WEB3FORMS_KEY = "27c9004c-fa09-4dd8-9a95-ae3b51804c5c";
+const FORM_ENDPOINT = "https://api.web3forms.com/submit";
 
 /* ---- nav solid on scroll + sticky cta ---- */
 const nav = document.getElementById('nav');
@@ -1031,25 +975,31 @@ form.addEventListener('submit', async (e)=>{
     return;
   }
 
-  const data = Object.fromEntries(new FormData(form).entries());
   const selectedEvents = checked.map(c=>c.value);
-  data.events = selectedEvents.join(", ");
-  data._subject = "New Greenprint LA registration — "+data.firstName+" "+data.lastName;
+  const first = document.getElementById('firstName').value.trim();
+  const last = document.getElementById('lastName').value.trim();
 
   submitBtn.disabled = true;
   submitBtn.textContent = "Locking you in…";
 
-  const demoMode = FORMSPREE_ENDPOINT.includes("YOUR_FORM_ID");
+  const fd = new FormData(form);
+  fd.append("access_key", WEB3FORMS_KEY);
+  fd.set("events", selectedEvents.join(", "));
+  fd.append("subject", "New Greenprint LA registration — "+first+" "+last);
+  fd.append("from_name", "Greenprint LA");
+
+  const demoMode = WEB3FORMS_KEY.includes("YOUR_ACCESS_KEY");
   try{
     if(!demoMode){
-      const res = await fetch(FORMSPREE_ENDPOINT, {
-        method:"POST", headers:{"Accept":"application/json"}, body:new FormData(form)
+      const res = await fetch(FORM_ENDPOINT, {
+        method:"POST", headers:{"Accept":"application/json"}, body:fd
       });
-      if(!res.ok) throw new Error("send failed");
+      const json = await res.json().catch(()=>({}));
+      if(!res.ok || !json.success) throw new Error("send failed");
     } else {
       await new Promise(r=>setTimeout(r,600));
     }
-    showConfirmation(data.firstName, selectedEvents);
+    showConfirmation(first, selectedEvents);
   }catch(err){
     statusEl.textContent = "Something went wrong. Please try again or email info@thegreenprint.trade.";
     statusEl.className='form-status show err';
